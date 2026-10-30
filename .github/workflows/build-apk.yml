@@ -21,6 +21,16 @@ jobs:
           cp index.html app/src/main/assets/index.html
           test -s app/src/main/assets/index.html
           echo "Bundled HTML bytes: $(wc -c < app/src/main/assets/index.html)"
+      - name: Generate Android launcher icons
+        run: |
+          python -m pip install --quiet cairosvg
+          python - <<'PY'
+          import cairosvg, os
+          for folder, size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+              target=f'app/src/main/res/mipmap-{folder}'
+              os.makedirs(target, exist_ok=True)
+              cairosvg.svg2png(url='app/icon/reading100.svg',write_to=f'{target}/ic_launcher.png',output_width=size,output_height=size)
+          PY
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
