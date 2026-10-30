@@ -150,7 +150,7 @@ h2{font-size:13px;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;font-w
 .it .done{color:var(--ok);font-weight:700}
 .reset{margin-top:16px;font-size:13px;color:var(--muted)}
 .reset button{border:0;background:none;text-decoration:underline;color:var(--muted);padding:0}
-</style>
+.w.major-phrase{color:#d2232a!important;font-weight:700!important;text-decoration-color:#d2232a!important}\n</style>
 
 <header class="top"><div class="top-in">
   <div class="brand">중학 영어 독해 100<small>중1·2 · 빈칸 · 단어 · 문법</small></div>
@@ -276,16 +276,26 @@ function lines(p){return p.s.map(function(r){return p.type==="d"?{sp:r[0],en:r[1
 function ansText(p,n){var b=p.b[n-1];return b[0][b[1]];}
 function filled(p,en){return en.replace(/\{(\d+)\}/g,function(m,n){return ansText(p,+n);});}
 function answers(id){return st.ans[id]||(st.ans[id]={});}
+// 주요 구문 강조: 문장 속에서 확인된 다어절 문법 표현만 표시
+var PHRASE_RULES=[
+ /\\b(?:in order to|so as to|as soon as|as long as|even though|even if|as if|not only|but also|because of|instead of|in spite of|according to|in addition to|as a result of|be able to|used to|have to|has to|had to|would like to|look forward to|take care of|pay attention to|be interested in|be good at|be afraid of|be proud of|be different from|be similar to|be responsible for|be made of|be made from|be known for|be famous for|such as|for example|rather than|more than|less than|at least|at first|in fact|on the other hand|in other words|by the way|in the end|at the same time|each other|one another)\\b/gi,
+ /\\b(?:too\\s+\\w+\\s+to|\\w+\\s+enough\\s+to|so\\s+\\w+\\s+that|such\\s+(?:a|an)\\s+\\w+\\s+that|the\\s+more\\s+\\w+\\s+the\\s+more)\\b/gi
+];
+function phraseMarkedTokens(tokens){
+ var words=tokens.filter(function(t){return t.t==="word";}), str=words.map(function(t){return t.v;}).join(" "), marks=new Set();
+ PHRASE_RULES.forEach(function(rule){rule.lastIndex=0;var m;while((m=rule.exec(str))){var before=str.slice(0,m.index).trim(), start=before?before.split(/\\s+/).length:0, count=m[0].trim().split(/\\s+/).length;for(var j=start;j<start+count;j++)marks.add(j);}});
+ var k=0;tokens.forEach(function(t){if(t.t==="word")t.major=marks.has(k++);});return tokens;
+}
 function wordsHtml(s,li){
-  return tokenize(s).map(function(t){
-    if(t.t==="word")return '<button type="button" class="w" data-w="'+esc(t.v)+'" data-l="'+li+'">'+esc(t.v)+'</button>';
+  return phraseMarkedTokens(tokenize(s)).map(function(t){
+    if(t.t==="word")return '<button type="button" class="w"+(t.major?" major-phrase":"")+" data-w="'+esc(t.v)+'" data-l="'+li+'">'+esc(t.v)+'</button>';
     if(t.t==="sep")return esc(t.v);
     return "";}).join("");
 }
 function lineHtml(p,en,li){
   var a=answers(p.id);
-  return tokenize(en).map(function(t){
-    if(t.t==="word")return '<button type="button" class="w" data-w="'+esc(t.v)+'" data-l="'+li+'">'+esc(t.v)+'</button>';
+  return phraseMarkedTokens(tokenize(en)).map(function(t){
+    if(t.t==="word")return '<button type="button" class="w"+(t.major?" major-phrase":"")+" data-w="'+esc(t.v)+'" data-l="'+li+'">'+esc(t.v)+'</button>';
     if(t.t==="sep")return esc(t.v);
     var n=t.n;
     if(a[n]===undefined)return '<button type="button" class="blank" data-q="'+n+'">('+n+') ______</button>';
