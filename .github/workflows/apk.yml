@@ -34,18 +34,18 @@ jobs:
             namespace 'com.reading100.app'
             compileSdk 35
             defaultConfig {
-              applicationId 'com.reading100.app'
+              applicationId 'com.reading100.app.separate'
               minSdk 24
               targetSdk 28
-              versionCode 10
-              versionName '1.0.10'
+              versionCode 11
+              versionName '1.0.11'
             }
           }
           EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET"/>
-            <application android:label="Reading100" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:usesCleartextTraffic="false">
+            <application android:label="Reading100 New" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:usesCleartextTraffic="false">
               <activity android:name=".MainActivity" android:exported="true">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
