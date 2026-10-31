@@ -342,19 +342,57 @@ function go(id){
   renderAll();window.scrollTo(0,0);
 }
 // 단어 뜻풀이 시트
+// English pronunciation lookup, with local fallback for offline use.
+var pronunciationCache={};
+function koreanFromIPA(ipa){
+  var x=(ipa||"").replace(/^\//,"").replace(/\/$/,"").replace(/[ˈˌ.]/g,"");
+  var rules=[["tʃ","치"],["dʒ","지"],["ʃ","시"],["ʒ","지"],["θ","스"],["ð","드"],["ŋ","응"],["aɪ","아이"],["aʊ","아우"],["ɔɪ","오이"],["eɪ","에이"],["oʊ","오우"],["əʊ","오우"],["iː","이"],["uː","우"],["ɜː","어"],["ɑː","아"],["ɔː","오"],["æ","애"],["ɛ","에"],["ɪ","이"],["ʊ","우"],["ʌ","어"],["ə","어"],["ɚ","어"],["ɝ","어"],["ɑ","아"],["ɔ","오"],["i","이"],["u","우"],["e","에"],["ɹ","ㄹ"],["r","ㄹ"],["l","ㄹ"],["b","ㅂ"],["p","ㅍ"],["d","ㄷ"],["t","ㅌ"],["g","ㄱ"],["k","ㅋ"],["f","ㅍ"],["v","ㅂ"],["s","ㅅ"],["z","ㅈ"],["h","ㅎ"],["m","ㅁ"],["n","ㄴ"],["w","우"],["j","이"]];
+  rules.forEach(function(a){x=x.split(a[0]).join(a[1]);});
+  return x.replace(/[^가-힣ㄱ-ㅎ]/g,"");
+}
+function pronounceWord(w,audio){
+  if(audio){var a=new Audio(audio);a.play().catch(function(){speakFallback(w);});}
+  else speakFallback(w);
+}
+function speakFallback(w){
+  if(!window.speechSynthesis)return;
+  speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(w);u.lang="en-US";u.rate=.85;speechSynthesis.speak(u);
+}
+async function fillPronunciation(w,base){
+  var slot=document.getElementById("shPron");if(!slot)return;
+  var key=w.toLowerCase(),info=pronunciationCache[key];
+  if(!info){
+    try{
+      var res=await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(w));
+      if(res.ok){
+        var arr=await res.json(),item=arr[0]||{},ph=(item.phonetics||[]).find(function(p){return p.text&&p.audio;})||(item.phonetics||[]).find(function(p){return p.text;})||{};
+        info={ipa:ph.text||item.phonetic||"",audio:ph.audio||""};
+      }
+    }catch(e){}
+    info=info||{ipa:"",audio:""};pronunciationCache[key]=info;
+  }
+  if(document.getElementById("shW").textContent!==w)return;
+  var ipa=info.ipa||"발음기호 조회 불가",ko=info.ipa?koreanFromIPA(info.ipa):"";
+  slot.innerHTML='<div style="margin:8px 0;line-height:1.8"><span style="color:var(--muted)">미국식 발음기호</span> <strong>'+esc(ipa)+'</strong><div style="color:#1967d2;font-weight:700">한국어 발음(근사치): '+esc(ko||"표기 확인 필요")+'</div><button type="button" id="shPlay" class="btn">▶ 영어 발음</button></div>';
+  document.getElementById("shPlay").onclick=function(){pronounceWord(w,info.audio);};
+}
 function openWord(btn){
-  var w=btn.getAttribute("data-w"), li=+btn.getAttribute("data-l"), p=P;
-  var r=resolveWord(DICT,w)||{b:w,pos:"",m:"(사전에 없는 단어)",f:""};
-  var key=w.toLowerCase().replace(/’/g,"'"), ctx=p.c[key]||p.c[r.b];
+  var w=btn.getAttribute("data-w"),li=+btn.getAttribute("data-l"),p=P;
+  var r=resolveWord(DICT,w)||{b:w,pos:"",m:"사전 뜻 확인 필요",f:""};
+  var key=w.toLowerCase().replace(/’/g,"'"),ctx=p.c[key]||p.c[r.b];
   document.querySelectorAll(".w.on").forEach(function(x){x.classList.remove("on");});btn.classList.add("on");
-  $("shW").textContent=w;$("shP").textContent=r.pos?posLabel(r.pos):"";$("shP").hidden=!r.pos;
+  $("shW").textContent=w;$("shP").textContent=r.pos?r.pos.split(",").map(function(x){return x==="a"?"adj.":x==="ad"?"adv.":x+". ";}).join(" / "):"";
+  $("shP").hidden=!r.pos;
   $("shM").textContent=r.m.replace(/;/g,", ");
-  var l=lines(p)[li], d="";
-  if(r.b.toLowerCase()!==key||r.f)d+='<dt>원형</dt><dd class="en">'+esc(r.b)+'</dd>';
+  var l=lines(p)[li],d='<div id="shPron"><button class="btn" type="button" id="shPlay">▶ 영어 발음</button><span style="margin-left:8px">발음기호 조회 중…</span></div>';
+  if(r.b.toLowerCase()!==key||r.f)d+='<dt>원형</dt><dd class="en">'+esc(r.b)+' <button type="button" class="btn" id="shBasePlay">▶</button></dd>';
   if(r.f)d+='<dt>변형</dt><dd>'+esc(r.f)+'</dd>';
   if(ctx)d+='<dt>이 지문에서</dt><dd>'+esc(ctx)+'</dd>';
   if(l)d+='<dt>지문 속 문장</dt><dd><div class="en">'+esc(filled(p,l.en))+'</div><div style="color:var(--muted)">'+esc(l.ko)+'</div></dd>';
   $("shD").innerHTML=d;$("sheet").hidden=false;
+  var play=document.getElementById("shPlay");if(play)play.onclick=function(){speakFallback(w);};
+  var basePlay=document.getElementById("shBasePlay");if(basePlay)basePlay.onclick=function(){speakFallback(r.b);};
+  fillPronunciation(w,r.b);
 }
 function closeSheet(){$("sheet").hidden=true;document.querySelectorAll(".w.on").forEach(function(x){x.classList.remove("on");});}
 // 해석 팝업
