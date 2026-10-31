@@ -39,3 +39,5 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
 
 # Manual build requested 2026-10-31
+
+# Rebuild requested 2026-10-31 (second run)
