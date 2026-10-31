@@ -37,3 +37,5 @@ jobs:
         with:
           name: Reading100-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+
+# Manual build requested 2026-10-31
